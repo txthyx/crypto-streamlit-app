@@ -1,6 +1,5 @@
-streamlit
-pandas
-matplotlib
-pycoingecko
-lottie-streamlit
-
+streamlit==1.35.0
+pandas==2.2.2
+matplotlib==3.8.4
+pycoingecko==3.1.0
+lottie-streamlit==0.0.5
