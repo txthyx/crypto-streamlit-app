@@ -25,6 +25,85 @@ This app retrieves cryptocurrency data using **CoinGecko API** and displays:
 """)
 
 #---------------------------------#
+# Highlights Section
+cg = CoinGeckoAPI()
+@st.cache_data(ttl=300)
+def get_global_data():
+    return cg.get_global()
+global_data = get_global_data()
+
+currency = 'usd'  # Default for highlights before sidebar
+market_cap = global_data['total_market_cap'][currency.lower()]
+market_cap_change = global_data['market_cap_change_percentage_24h_usd']
+volume_24h = global_data['total_volume'][currency.lower()]
+
+@st.cache_data(ttl=300)
+def get_trending():
+    return cg.get_search_trending()
+trending = get_trending()['coins']
+
+trending_ids = [coin['item']['id'] for coin in trending[:3]]
+if trending_ids:
+    trending_prices = cg.get_price(ids=trending_ids, vs_currencies=currency.lower())
+else:
+    trending_prices = {}
+
+st.markdown('---')
+hcol1, hcol2 = st.columns([2,2])
+
+with hcol1:
+    st.metric(
+        label='Global Market Cap',
+        value=f"${market_cap:,}",
+        delta=f"{market_cap_change:.2f}% (24h)",
+        delta_color='normal' if market_cap_change >= 0 else 'inverse'
+    )
+    st.metric(
+        label='24h Trading Volume',
+        value=f"${volume_24h:,.0f}"
+    )
+
+    # --- Search Bar for Top 100 Cryptos ---
+    @st.cache_data(ttl=300)
+    def get_top100():
+        cg = CoinGeckoAPI()
+        data = cg.get_coins_markets(
+            vs_currency=currency,
+            per_page=100,
+            page=1,
+            price_change_percentage="24h"
+        )
+        return pd.DataFrame(data)
+
+    top100_df = get_top100()
+    search_query = st.text_input('🔍 Search Top 100 Cryptos (by name or symbol)')
+    if search_query:
+        results = top100_df[
+            top100_df['name'].str.contains(search_query, case=False) |
+            top100_df['symbol'].str.contains(search_query, case=False)
+        ]
+        if not results.empty:
+            for _, row in results.iterrows():
+                st.write(f"**{row['name']} ({row['symbol'].upper()})**")
+                st.write(f"Price: {row['current_price']}")
+                pct = row.get('price_change_percentage_24h_in_currency', None)
+                if pct is not None:
+                    st.write(f"24h %: {pct:.2f}%")
+                st.markdown('---')
+        else:
+            st.info('No matching cryptocurrency found.')
+
+with hcol2:
+    st.markdown('**🔥 Trending Coins**')
+    for coin in trending[:3]:
+        c = coin['item']
+        price = trending_prices.get(c['id'], {}).get(currency.lower(), 'N/A')
+        st.write(f"{c['name']} ({c['symbol'].upper()})")
+        st.write(f"Rank: {c['market_cap_rank']}")
+        st.write(f"Price: {price}")
+        st.markdown('---')
+
+#---------------------------------#
 # Sidebar Inputs
 currency = st.sidebar.selectbox('Currency', ['USD', 'INR'])
 percent_timeframe = st.sidebar.selectbox('Change Time Frame', ['1h', '24h', '7d'])
@@ -37,7 +116,7 @@ def load_data(currency):
     cg = CoinGeckoAPI()
     data = cg.get_coins_markets(
         vs_currency=currency,
-        per_page=25,
+        per_page=250,
         page=1,
         price_change_percentage="1h,24h,7d"
     )
