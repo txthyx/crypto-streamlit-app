@@ -11,7 +11,7 @@ import base64
 st.set_page_config(layout="wide", page_title="Crypto Price Tracker")
 
 with st.sidebar:
-    st.image("logo.png", use_container_width=True)
+    st.image("logo.png", use_column_width=True)
 
 #---------------------------------#
 # Title
