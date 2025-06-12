@@ -1,6 +1,0 @@
-streamlit
-pandas
-matplotlib
-pycoingecko
-streamlit-lottie
-requests
