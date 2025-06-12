@@ -2,7 +2,11 @@
 
 import streamlit as st
 import pandas as pd
-import matplotlib.pyplot 
+try:
+    import matplotlib.pyplot as plt
+except Exception as e:
+    import streamlit as st
+    st.error(f"matplotlib import failed: {e}")
 from pycoingecko import CoinGeckoAPI
 import base64
 
