@@ -4,3 +4,4 @@ matplotlib
 pycoingecko
 streamlit-lottie
 requests
+scikit-learn
