@@ -5,6 +5,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from pycoingecko import CoinGeckoAPI
 import base64
+from sklearn.linear_model import LinearRegression
 
 #---------------------------------#
 # Page setup
@@ -200,3 +201,53 @@ ax.set_xlabel(f'{percent_timeframe} % Change')
 ax.set_title(f'Change in Price ({percent_timeframe})')
 
 st.pyplot(fig)
+
+#---------------------------------#
+# Price Trend Prediction (Linear Regression)
+st.subheader('🔮 Price Trend Prediction (7-day Linear Regression)')
+
+# Let user select a coin for prediction
+def get_coin_list():
+    cg = CoinGeckoAPI()
+    coins = cg.get_coins_markets(vs_currency=currency, per_page=100, page=1)
+    return [(coin['id'], coin['name']) for coin in coins]
+
+coin_options = get_coin_list()
+coin_id = st.selectbox('Select coin for prediction', options=[c[0] for c in coin_options], format_func=lambda x: dict(coin_options)[x])
+
+# Fetch historical price data (last 30 days)
+@st.cache_data(ttl=3600)
+def get_historical_prices(coin_id, currency, days=30):
+    cg = CoinGeckoAPI()
+    data = cg.get_coin_market_chart_by_id(id=coin_id, vs_currency=currency, days=days)
+    prices = data['prices']
+    df = pd.DataFrame(prices, columns=['timestamp', 'price'])
+    df['date'] = pd.to_datetime(df['timestamp'], unit='ms')
+    return df
+
+hist_df = get_historical_prices(coin_id, currency, days=30)
+hist_df['date_ordinal'] = hist_df['date'].map(pd.Timestamp.toordinal)
+
+# Linear Regression
+X = hist_df['date_ordinal'].values.reshape(-1, 1)
+y = hist_df['price'].values
+model = LinearRegression()
+model.fit(X, y)
+
+# Predict next 7 days
+future_dates = pd.date_range(hist_df['date'].iloc[-1], periods=8, freq='D')[1:]
+future_ordinals = future_dates.map(pd.Timestamp.toordinal).values.reshape(-1, 1)
+future_prices = model.predict(future_ordinals)
+future_df = pd.DataFrame({'date': future_dates, 'predicted_price': future_prices})
+
+# Plot actual and predicted prices
+fig2, ax2 = plt.subplots(figsize=(10, 4))
+ax2.plot(hist_df['date'], hist_df['price'], label='Actual Price')
+ax2.plot(future_df['date'], future_df['predicted_price'], label='Predicted Price (7d)', linestyle='--')
+ax2.set_xlabel('Date')
+ax2.set_ylabel(f'Price ({currency.upper()})')
+ax2.set_title(f'{dict(coin_options)[coin_id]} Price Trend Prediction')
+ax2.legend()
+fig2.autofmt_xdate()
+ax2.tick_params(axis='x', rotation=30)
+st.pyplot(fig2)
